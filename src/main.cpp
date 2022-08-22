@@ -1,11 +1,11 @@
 #include <Arduino.h>
-#include <U8x8lib.h>
-#include <Wire.h>
+#include <SPI.h>
+#include "OSO_LCD.h"
 
-U8X8_SSD1306_128X64_NONAME_HW_I2C u8x8(/* clock=*/PIN_WIRE_SCL, /* data=*/PIN_WIRE_SDA, /* reset=*/U8X8_PIN_NONE); // OLEDs without Reset of the Display
-#define REED_SWITCH D10
-#define MAX_RPMS 10000
-#define BUFFER_SIZE (MAX_RPMS / 15)
+
+#define REED_SWITCH 10
+#define MAX_RPMS 5000
+#define BUFFER_SIZE (MAX_RPMS)
 uint64_t timestamps[BUFFER_SIZE];
 
 void tick()
@@ -20,7 +20,7 @@ void tick()
 
 uint16_t getRPMs()
 {
-  uint64_t cutoff = millis() - (60000 / 15);
+  uint64_t cutoff = millis() - 3000;
   uint16_t result = 0;
   // can be optimized by going backward from index
   // but not worth here.
@@ -31,26 +31,23 @@ uint16_t getRPMs()
       ++result;
     }
   }
-  // minor optimization. I couldn't resist
+
   return result;
 }
-
+OSO_LCDWing display;
+char s_buffer[10];
 void setup(void)
 {
+  display.begin();
   attachInterrupt(digitalPinToInterrupt(REED_SWITCH), tick, FALLING);
   pinMode(REED_SWITCH, INPUT_PULLDOWN_SENSE);
-  u8x8.begin();
-  u8x8.setFlipMode(1); // set number from 1 to 3, the screen word will rotary 180
-  u8x8.setFont(u8x8_font_inb21_2x4_f);
 }
 
 void loop(void)
 {
+  for(int i=0;i < 10;i++) s_buffer[i] = ' ';
+  sprintf(s_buffer, "%5d", getRPMs());
+  display.print(s_buffer);
 
-  u8x8.clearDisplay();
-  u8x8.setCursor(0, 0);
-
-  u8x8.print(getRPMs());
-
-  delay(500);
+ delay(500);
 }
