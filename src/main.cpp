@@ -1,9 +1,25 @@
 #include <Arduino.h>
 #include <SPI.h>
-#include "OSO_LCD.h"
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
+#include <Wire.h>
 
+Adafruit_MPU6050 mpu;
 
-#define REED_SWITCH 10
+// These are the values for my treadmill.
+// incline %     Y
+//     0        40
+//     2        59
+//     3        75
+//     4        90
+//     5       102
+//     6       112
+//     7       124
+//     8       135
+//     9       145
+//    10       158
+
+#define REED_SWITCH 9
 #define MAX_RPMS 5000
 #define BUFFER_SIZE (MAX_RPMS)
 uint64_t timestamps[BUFFER_SIZE];
@@ -34,20 +50,42 @@ uint16_t getRPMs()
 
   return result;
 }
-OSO_LCDWing display;
-char s_buffer[10];
+
+
 void setup(void)
 {
-  display.begin();
+  Serial.begin(115200);
+  Wire.begin();
+  while (!Serial)
+    ;
+
+  // Try to initialize!
+  if (!mpu.begin())
+  {
+    Serial.println("Failed to find MPU6050 chip");
+    while (1)
+    {
+      delay(10);
+    }
+  }
+
   attachInterrupt(digitalPinToInterrupt(REED_SWITCH), tick, FALLING);
   pinMode(REED_SWITCH, INPUT_PULLDOWN_SENSE);
+
+  mpu.setGyroRange(MPU6050_RANGE_500_DEG);
+
+  mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 }
 
 void loop(void)
 {
-  for(int i=0;i < 10;i++) s_buffer[i] = ' ';
-  sprintf(s_buffer, "%5d", getRPMs());
-  display.print(s_buffer);
+  sensors_event_t a, g, temp;
+  mpu.getEvent(&a, &g, &temp);
 
- delay(500);
+  uint16_t y = a.acceleration.y * (-100);
+
+  Serial.printf("%5d\n", y);
+
+  delay(1000);
 }
